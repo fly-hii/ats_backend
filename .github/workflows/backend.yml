@@ -48,7 +48,13 @@ jobs:
         script: |
           docker pull ${{ secrets.DOCKER_USERNAME }}/ats-backend
 
-          docker stop $(docker ps -q --filter "publish=8080") || true
-          docker rm $(docker ps -a -q --filter "publish=8080") || true
+# Stop container by name if exists
+docker stop backend || true
+docker rm backend || true
 
-          docker run -d -p 8080:8080 --name backend ${{ secrets.DOCKER_USERNAME }}/ats-backend
+# Stop any container using port 8080 (extra safety)
+docker ps -q --filter "publish=8080" | xargs -r docker stop
+docker ps -a -q --filter "publish=8080" | xargs -r docker rm
+
+# Run new container
+docker run -d -p 8080:8080 --name backend ${{ secrets.DOCKER_USERNAME }}/ats-backend
