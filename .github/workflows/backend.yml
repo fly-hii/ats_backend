@@ -2,41 +2,45 @@ name: Backend CI/CD
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Get code
+    # 1. Checkout code
     - name: Checkout code
       uses: actions/checkout@v3
 
     # 2. Setup Java
-    - name: Setup Java
+    - name: Setup Java 17
       uses: actions/setup-java@v3
       with:
         distribution: 'temurin'
         java-version: '17'
 
-    # 3. Build JAR
+    # 3. Build JAR using Maven
     - name: Build with Maven
       run: |
         chmod +x mvnw
         ./mvnw clean package -DskipTests
 
-    # 4. Login Docker Hub
-    - name: Docker Login
-      run: echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+    # 4. Login to Docker Hub
+    - name: Login to Docker Hub
+      run: |
+        echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-    # 5. Build Image
+    # 5. Build Docker Image
     - name: Build Docker Image
-      run: docker build -t ${{ secrets.DOCKER_USERNAME }}/ats-backend .
+      run: |
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/ats-backend .
 
-    # 6. Push Image
+    # 6. Push Docker Image
     - name: Push Docker Image
-      run: docker push ${{ secrets.DOCKER_USERNAME }}/ats-backend
+      run: |
+        docker push ${{ secrets.DOCKER_USERNAME }}/ats-backend
 
     # 7. Deploy to EC2
     - name: Deploy to EC2
@@ -48,13 +52,13 @@ jobs:
         script: |
           docker pull ${{ secrets.DOCKER_USERNAME }}/ats-backend
 
-# Stop container by name if exists
-docker stop backend || true
-docker rm backend || true
+          # Stop container by name
+          docker stop backend || true
+          docker rm backend || true
 
-# Stop any container using port 8080 (extra safety)
-docker ps -q --filter "publish=8080" | xargs -r docker stop
-docker ps -a -q --filter "publish=8080" | xargs -r docker rm
+          # Stop any container using port 8080
+          docker ps -q --filter "publish=8080" | xargs -r docker stop
+          docker ps -a -q --filter "publish=8080" | xargs -r docker rm
 
-# Run new container
-docker run -d -p 8080:8080 --name backend ${{ secrets.DOCKER_USERNAME }}/ats-backend
+          # Run new container
+          docker run -d -p 8080:8080 --name backend ${{ secrets.DOCKER_USERNAME }}/ats-backend
