@@ -48,7 +48,7 @@ jobs:
         script: |
           docker pull ${{ secrets.DOCKER_USERNAME }}/ats-backend
 
-          docker stop backend || true
-          docker rm backend || true
+          docker stop $(docker ps -q --filter "publish=8080") || true
+          docker rm $(docker ps -a -q --filter "publish=8080") || true
 
           docker run -d -p 8080:8080 --name backend ${{ secrets.DOCKER_USERNAME }}/ats-backend
